@@ -1,0 +1,95 @@
+# -*- coding: utf-8 -*-
+require 'json'
+require 'msgpack'g
+
+module <%= ast.package.name.to_camel %>
+
+<%- ast.messages.each do |message| -%>
+class <%= message.name.to_camel %>
+  attr_accessor <%= message.nodes.map{|d| ":#{d.name}"}.join(", ") %>
+  def initialize()
+    <%- message.nodes.each do |node| -%>
+    @<%= node.name %> = <%= node.attribute == "repeated_attr" ? "[]" : "nil" %>
+    <%- end -%>
+  end
+
+  <%- message.enum_defs.each do |enum_def| -%>
+  module <%= enum_def.name.to_camel %>
+    <%- enum_def.nodes.each do |node| -%>
+    <%= node.name.upcase %> = <%= node.node_id %>
+    <%- end -%>
+  end
+  <%- end -%>
+
+  def serialize(type = :json)
+    obj = {
+      <%- message.nodes.each do |node| -%>
+      "<%= node.name %>" => @<%= node.name %>,
+      <%- end -%>
+    }
+    if type == :json
+      obj.to_json
+    elsif type == :msgpack
+      obj.to_msgpack
+    end
+  end
+
+  def deserialize(src, type = :json)
+    obj = nil
+    if type == :json
+      obj = JSON.load(src)
+    elsif type == :msgpack
+      obj = MessagePack.unpack(src)
+    end
+    <%- message.nodes.each do |node| -%>
+    @<%= node.name %> = obj["<%= node.name%>"]
+    <%- end -%>
+    nil
+  end
+
+  <%- message.message_defs.each do |message| -%>
+  class <%= message.name.to_camel %>
+    attr_accessor <%= message.nodes.map{|d| ":#{d.name}"}.join(", ") %>
+    def initialize()
+      <%- message.nodes.each do |node| -%>
+      @<%= node.name %> = <%= node.attribute == "repeated_attr" ? "[]" : "nil" %>
+      <%- end -%>
+    end
+    <%- message.enum_defs.each do |enum_def| -%>
+    module <%= enum_def.name.to_camel %>
+      <%- enum_def.nodes.each do |node| -%>
+      <%= node.name %> = <%= node.node_id %>
+      <%- end -%>
+    end
+    <%- end -%>
+    def serialize(type = :json)
+      obj = {
+        <%- message.nodes.each do |node| -%>
+        "<%= node.name %>" => @<%= node.name %>,
+        <%- end -%>
+      }
+      if type == :json
+        obj.to_json
+      elsif type == :msgpack
+        obj.to_msgpack
+      end
+    end
+
+    def deserialize(src, type = :json)
+      obj = nil
+      if type == :json
+        obj = JSON.load(src)
+      elsif type == :msgpack
+        obj = MessagePack.unpack(src)
+      end
+      <%- message.nodes.each do |node| -%>
+      @<%= node.name %> = obj["<%= node.name%>"]
+      <%- end -%>
+      nil
+    end
+  end
+  <%- end -%>
+end
+
+<%- end -%>
+end
