@@ -1,6 +1,21 @@
 # -*- coding: utf-8 ruby -*-
 #!/bin/env ruby
 
+# utilities
+class String
+  def to_camel()
+    words = self.split("_")
+    words.map{|w| w[0] = w[0].upcase; w}.join("")
+  end
+  def to_snake()
+    self.gsub(/::/, '/').
+    gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').
+    gsub(/([a-z\d])([A-Z])/,'\1_\2').
+    tr("-", "_").
+    downcase
+  end
+end
+
 
 ## input validations
 
@@ -41,35 +56,37 @@ if params["v"]
   ast.dump(2)
 end
 
-# validation process
+### validation process
 
-## not implemented yet!!
+# not implemented yet!!
 
-## output process
-template = nil
-begin
-  file_handle = File.open(filepath, "r")
-  template = file_handle.read
-rescue => e
-  puts "#{filepath} open failed #{e}"
-end
-
-class String
-  def to_camel()
-    words = self.split("_")
-    words.map{|w| w[0] = w[0].upcase; w}.join("")
+### output process
+templates = ["", "_server", "_server_impl"]
+filename = file.sub(/\.rpcdef$/, "")
+templates.each{|t|
+  filepath = "templates/#{params['l']}#{t}.erb"
+  template = nil
+  begin
+    file_handle = File.open(filepath, "r")
+    template = file_handle.read
+  rescue => e
+    puts "#{filepath} open failed #{e}"
   end
-end
 
-erb = ERB.new(template, nil, '-')
-result = erb.result(binding)
+  erb = ERB.new(template, nil, '-')
+  result = erb.result(binding)
+  outfile = nil
+  if params['o']
+    outfile = params['o']
+  else
+    outfile = "#{filename}#{t}.rb"
+  end
 
-outfile = nil
-if params['o']
-  outfile = params['o']
-else
-  outfile = file.sub(/\.rpcdef$/, "_def.rb")
-end
-
-File.open(outfile, "w").write(result)
-puts "wrote file #{outfile}"
+  if /impl/ =~ t and File.exists? outfile
+    puts "Implementation file already exist, I won't overwrite."
+    puts "If you want to initialize it, delete '#{outfile}'"
+  else
+    File.open(outfile, "w").write(result)
+    puts "wrote file #{outfile}"
+  end
+}

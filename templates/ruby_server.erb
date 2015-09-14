@@ -1,0 +1,67 @@
+# -*- coding: utf-8 -*-
+# DO NOT EDIT!
+# this source code is automatically generated from <%= file %>
+
+require 'celluloid/autostart'
+require 'reel'
+require './<%= filename %>_server_impl'  # user implements
+require 'json'
+require 'msgpack'
+
+class <%= filename.to_camel %>Server < Reel::Server::HTTP
+  def initialize(host = "127.0.0.1", port = 3000)
+    super(host, port, &method(:on_connection))
+    @services = {}
+    <%- ast.services.each do |service| -%>
+    @services["<%= service.name.to_snake %>"] = <%= ast.package.name.to_camel %>::<%= service.name%>.new
+    <%- end -%>
+  end
+
+  def on_connection(connection)
+    connection.each_request do |request|
+      if request.websocket?
+        handle_websocket(request.websocket)
+      else
+        handle_request(request)
+      end
+    end
+  end
+
+  def handle_request(request)
+    buff = request.body.read(10000)
+    case request.headers["Content-type"]
+    when "application/json"
+      begin
+        data = JSON.parse(buff)
+      rescue TypeError => e
+        request.respond :bad_request, e.message
+      rescue JSON::ParserError
+        request.respond :bad_request, "invalid json '#{buff}'"
+      end
+    when "application/msgpack"
+      begin
+        data = MessagePack.unpack(buff)
+      rescue MessagePack::MalformedFormatError
+        request.respond :bad_request, "invalid msgpack '#{buff}'"
+      end
+    end
+
+    # parse url
+    target, method = request.url.split("/").reject{|m|m.empty?}
+    begin
+      result = @services[target].send(method.to_sym, data)
+      request.respond :ok, result.to_json
+    rescue NoMethodError => e
+      request.respond :not_found, "method '#{method}' does not exist"
+    rescue => e
+      request.respond :ok, e.to_str
+    end
+  end
+
+  def handle_websocket(sock)
+    sock << "Hello everyone out there in WebSocket land!"
+    sock.close
+  end
+end
+
+<%= filename.to_camel %>Server.run

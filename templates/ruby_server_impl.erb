@@ -1,0 +1,16 @@
+# -*- coding: utf-8 -*-
+# EDIT THIS!
+# this source code is automatically generated from <%= file %>
+require './<%= filename %>'
+
+module <%= ast.package.name.to_camel %>
+  <%- ast.services.each do |service| -%>
+  class <%= service.name.to_camel %>
+    <%- service.procedures.each do |method| -%>
+    def <%= method.name.downcase %>(<%= method.arguments.map{|m|m.to_snake}.join(", ") %>)
+    end
+    <%- end -%>
+  end
+  <%- end -%>
+end
+

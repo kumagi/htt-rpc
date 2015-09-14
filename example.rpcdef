@@ -38,5 +38,12 @@ message AddressBook {
 }
 
 service SampleService {
- rpc Echo(AddressBook) returns (bool) {}
+  // it will be implemented as echo_node(node_id, p, ad) -> bool
+  POST /echo(int id) -> bool;
+  GET  /echo/{node_id}/node(Person p, AddressBook ad) -> bool;
+}
+
+service Math {
+  GET /add(int a, int b) -> int;
+  GET /add(double a, double b) -> double;
 }
