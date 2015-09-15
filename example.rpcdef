@@ -1,8 +1,4 @@
 // See README.txt for information and build instructions.
-/* hoge fuga
-
-
- */
 syntax = "proto3";
 
 package tutorial;

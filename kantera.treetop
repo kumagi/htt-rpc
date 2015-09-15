@@ -47,19 +47,18 @@ grammar Kantera
   rule message
     'message' space identifier space? '{' (space? message_def)* space? '}' {
       def name; elements[2].text_value; end
-      defines = s[6].text_value
-      puts "message #{name} defined"
-      [name, defines]
-      "str"
+      def build_message(builder)
+        elements[2]
+        elements[7].build(builder)
+      end
     }
   end
 
   rule service
-    'service' space identifier space? '{' (space? method_def)* space? '}' &{|s|
-      name = s[2].text_value
-      #defines = s[6].map{|m| m}
-      puts "service #{name} defined"
-      [name, ""]
+    'service' space identifier space? '{' (space? method_def)* space? '}' {
+      def name; elements[2].text_value; end
+      def build_service(builder)
+        
     }
   end
 
