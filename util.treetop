@@ -1,0 +1,71 @@
+grammar Util
+  rule empty_line
+    line_break space*
+  end
+
+  rule line_break
+    [\n]
+  end
+
+  rule eol
+    "\n" / eof
+  end
+
+  rule eof
+    !.
+  end
+
+  rule char
+    ![\n] .
+  end
+
+  rule space
+    " "
+  end
+
+  rule comment_to_eol
+    '//' (!"\n" .)*
+  end
+
+  rule comment_multi_line
+    '/*' (!'*/' (. / "\n"))* '*/'
+  end
+
+  rule comment
+    comment_to_eol / comment_multi_line {
+      def build; nil; end
+    }
+  end
+
+  rule white
+    [ \t\n\r]
+  end
+
+  rule ignore
+    (vacant / comment)
+  end
+
+  rule space
+    (white / comment)+
+  end
+
+  rule identifier
+    [a-zA-Z_0-9]* &{|s|
+      s[0].text_value
+    }
+  end
+
+  rule path
+    [a-zA-Z_0-9/{}]* &{|s|
+      s[0].text_value
+    }
+  end
+
+  rule string
+    '"' ( !'"' . / '\"' )* '"'
+  end
+
+  rule number
+    [0-9]+ &{|s| s[0].text_value }
+  end
+end

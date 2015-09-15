@@ -1,30 +1,30 @@
-module HTT_RPC
-  class Global
+module Kantera
+  class Document
     def initialize()
-      @syntax = nil
+      @settings = {}
+      @options = {}
       @package = nil
-      @options = []
       @messages = []
       @services = []
     end
     def dump(indent = 0)
       sp = " " * indent
-      puts "#{sp}syntax: #{@syntax.name}"
-      puts "#{sp}package: #{@package.name}"
-      unless options.empty?
+      puts "#{sp}settings: #{@settings}"
+      puts "#{sp}package: #{@package}"
+      unless @options.empty?
         puts "#{sp}options: ["
-        @options.each{|option|
-          option.dump(indent + 2)
+        @options.each{|key, value|
+          puts "#{sp}  #{key} => #{value}"
         }
-      puts "#{sp}]"
+        puts "#{sp}]"
       end
-      unless messages.empty?
+      unless @messages.empty?
         puts "#{sp}messages: ["
         @messages.each{|message|
           message.dump(indent + 2)
         }
       end
-      unless services.empty?
+      unless @services.empty?
         puts "#{sp}services: ["
         @services.each{|service|
           service.dump(indent + 2)
@@ -32,17 +32,13 @@ module HTT_RPC
       end
       puts "#{sp}]"
     end
-    attr_accessor :syntax, :package, :options, :messages, :services
+    attr_accessor :settings, :package, :options, :messages, :services
   end
 
   class Enum
     def initialize()
       @name = nil
       @nodes = []
-      def initialize()
-        @name = nilp
-        @nodes = []
-      end
     end
     def dump(indent = 0)
       sp = " " * indent

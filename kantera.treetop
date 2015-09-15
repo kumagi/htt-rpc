@@ -1,0 +1,107 @@
+require 'pp'
+require './ast_node'
+
+grammar Kantera
+  include Util
+  rule all
+    (comment / setting / package /
+      option / message / service / "\n")+ {
+      def build(builder)
+        elements
+          .reject{|d| d.text_value == "\n"}
+          .map{|d|
+            begin
+              d.build(builder)
+            rescue => e
+              p e
+            end
+          }
+      end
+    }
+  end
+
+  rule setting
+    identifier space '=' space string space? ';' {
+      def key; elements[0].text_value; end
+      def value; elements[4].text_value; end
+      def build(builder); builder.settings[key] = value; end
+    }
+  end
+
+  rule package
+    'package' space identifier space? ';' {
+      def name; elements[0].text_value; end
+      def build(builder); builder.package = name; end
+    }
+  end
+
+  rule option
+    'option' space key:identifier space? '=' space? value:string space? ';' {
+      def key; elements[2].text_value; end
+      def value; elements[6].text_value; end
+      def build(builder); builder.options[key] = value; end
+      true
+    }
+  end
+
+  rule message
+    'message' space identifier space? '{' (space? message_def)* space? '}' {
+      def name; elements[2].text_value; end
+      defines = s[6].text_value
+      puts "message #{name} defined"
+      [name, defines]
+      "str"
+    }
+  end
+
+  rule service
+    'service' space identifier space? '{' (space? method_def)* space? '}' &{|s|
+      name = s[2].text_value
+      #defines = s[6].map{|m| m}
+      puts "service #{name} defined"
+      [name, ""]
+    }
+  end
+
+  rule message_def
+    member / enum / message &{|s|
+      name = s[0].text_value
+      puts "message_member #{name} definedddd"
+      name
+    } space
+  end
+
+  rule member
+    member_atribute?
+    identifier space identifier space '=' space number space? ';' {
+      }
+  end
+
+  rule member_atribute
+    ('optional' / 'required' / 'repeated') space
+  end
+
+  rule enum
+    'enum' space identifier space '{' space
+       (identifier space '=' space number space? ';' space)*
+    '}' &{|s|
+      name = s[2].text_value
+      puts "enum #{name} defined"
+      name
+    }
+  end
+
+  rule method_def
+    verb space path argument_list space? '->' space? identifier space? ';'
+  end
+
+  rule verb
+    'GET' / 'POST' / 'PUT' / 'PATCH' / 'DELETE'
+  end
+
+  rule argument_list
+    '(' space? identifier space identifier
+      (space? ',' space? identifier space identifier)* space? ')'
+  end
+
+end
