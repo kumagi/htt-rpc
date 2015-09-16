@@ -35,7 +35,7 @@ message AddressBook {
 
 service SampleService {
   // it will be implemented as echo_node(node_id, p, ad) -> bool
-  POST /echo(int id) -> bool;
+  stream POST /echo(int id) -> stream bool;
   GET  /echo/{node_id}/node(Person p, AddressBook ad) -> bool;
 }
 

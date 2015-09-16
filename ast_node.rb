@@ -4,8 +4,8 @@ module Kantera
       @settings = {}
       @options = {}
       @package = nil
-      @messages = []
-      @services = []
+      @messages = {}
+      @services = {}
     end
     def dump(indent = 0)
       sp = " " * indent
@@ -19,26 +19,29 @@ module Kantera
         puts "#{sp}]"
       end
       unless @messages.empty?
-        puts "#{sp}messages: ["
-        @messages.each{|message|
-          message.dump(indent + 2)
+        puts "#{sp}messages: {"
+        @messages.each{|key, value|
+          puts "#{sp}  #{key}: ["
+          value.dump(indent + 4)
+          puts "#{sp}  ]"
         }
+        puts "#{sp}}"
       end
       unless @services.empty?
-        puts "#{sp}services: ["
+        puts "#{sp}services: {"
         @services.each{|service|
           service.dump(indent + 2)
         }
+        puts "#{sp}]"
       end
-      puts "#{sp}]"
     end
     attr_accessor :settings, :package, :options, :messages, :services
   end
 
   class Enum
-    def initialize()
-      @name = nil
-      @nodes = []
+    def initialize(name, nodes)
+      @name = name
+      @nodes = nodes
     end
     def dump(indent = 0)
       sp = " " * indent
@@ -52,11 +55,11 @@ module Kantera
   end
 
   class Node
-    def initialize()
-      @name = nil
-      @type = nil
-      @node_id = nil
-      @attribute = nil
+    def initialize(name, type, node_id, attr)
+      @name = name
+      @type = type
+      @node_id = node_id
+      @attribute = attr
     end
     def dump(indent = 0)
       sp = " " * indent
@@ -71,9 +74,9 @@ module Kantera
   end
 
   class EnumNode
-    def initialize()
-      @name = nil
-      @node_id = nil
+    def initialize(name, node_id)
+      @name = name
+      @node_id = node_id
     end
     def dump(indent = 0)
       sp = " " * indent
@@ -83,11 +86,11 @@ module Kantera
   end
 
   class Message
-    def initialize()
+    def initialize(name)
       @name = nil
       @nodes = []
-      @message_defs = []
-      @enum_defs = []
+      @messages = {}
+      @enums = {}
     end
     def dump(indent = 0)
       sp = " " * indent
@@ -95,23 +98,36 @@ module Kantera
       @nodes.each{|node|
         node.dump(indent + 2)
       }
-      unless @message_defs.empty?
+      unless @messages.empty?
         puts "#{sp}  inner messages: ["
-        @message_defs.each{|message_def|
-          message_def.dump(indent + 4)
+        @messages.each{|key, value|
+          puts key
+          value.dump(indent + 4)
         }
         puts "#{sp}  ]"
       end
-      unless @enum_defs.empty?
+      unless @enums.empty?
         puts "#{sp}  inner enums: ["
-        @enum_defs.each{|enum_def|
-          enum_def.dump(indent + 4)
+        @enums.each{|key, value|
+          puts key
+          value.dump(indent + 4)
         }
         puts "#{sp}  ]"
       end
       puts "#{sp}]"
     end
-    attr_accessor :name, :nodes, :message_defs, :enum_defs
+    attr_accessor :name, :nodes, :messages, :enums
+  end
+
+  class Argument
+    def initilize(name, type)
+      @name = name
+      @type = type
+    end
+
+    def dump(indent)
+      puts "#{type} #{name}"
+    end
   end
 
   class Procedure

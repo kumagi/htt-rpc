@@ -11,8 +11,8 @@ def parse(data)
   ast = parser.parse data
   d = Kantera::Document.new
 
-  print "### "
   ast.build(d)
+  puts "### "
   d.dump
   puts " ###"
 
