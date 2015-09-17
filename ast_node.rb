@@ -4,8 +4,8 @@ module Kantera
       @settings = {}
       @options = {}
       @package = nil
-      @messages = {}
-      @services = {}
+      @messages = []
+      @services = []
     end
     def dump(indent = 0)
       sp = " " * indent
@@ -20,17 +20,15 @@ module Kantera
       end
       unless @messages.empty?
         puts "#{sp}messages: {"
-        @messages.each{|key, value|
-          puts "#{sp}  #{key}: ["
-          value.dump(indent + 4)
-          puts "#{sp}  ]"
+        @messages.each{|m|
+          m.dump(indent + 4)
         }
         puts "#{sp}}"
       end
       unless @services.empty?
         puts "#{sp}services: {"
-        @services.each{|service|
-          service.dump(indent + 2)
+        @services.each{|m|
+          m.dump(indent + 2)
         }
         puts "#{sp}]"
       end
@@ -86,11 +84,23 @@ module Kantera
   end
 
   class Message
-    def initialize(name)
+    def initialize()
       @name = nil
       @nodes = []
-      @messages = {}
-      @enums = {}
+      @messages = []
+      @enums = []
+    end
+    def add_element(elm)
+      case(elm)
+      when(Message)
+        @messages << elm
+      when(Enum)
+        @enums << elm
+      when(Node)
+        @nodes << elm
+      else
+        puts "invalid num"
+      end
     end
     def dump(indent = 0)
       sp = " " * indent
@@ -100,17 +110,15 @@ module Kantera
       }
       unless @messages.empty?
         puts "#{sp}  inner messages: ["
-        @messages.each{|key, value|
-          puts key
-          value.dump(indent + 4)
+        @messages.each{|m|
+          m.dump(indent + 4)
         }
         puts "#{sp}  ]"
       end
       unless @enums.empty?
         puts "#{sp}  inner enums: ["
-        @enums.each{|key, value|
-          puts key
-          value.dump(indent + 4)
+        @enums.each{|m|
+          m.dump(indent + 4)
         }
         puts "#{sp}  ]"
       end
@@ -120,27 +128,28 @@ module Kantera
   end
 
   class Argument
-    def initilize(name, type)
-      @name = name
-      @type = type
+    def initilize
+      @name = nil
+      @type = nil
     end
 
-    def dump(indent)
-      puts "#{type} #{name}"
+    def to_s
+      "#{type} #{name}"
     end
+    attr_accessor :name, :type
   end
 
   class Procedure
-    def initialize()
-      @name = nil
-      @arguments = []
-      @returns = nil
-      @input_stream = nil
-      @output_stream = nil
+    def initialize(name, arguments, returns, input_stream, output_stream)
+      @name = name
+      @arguments = arguments
+      @returns = returns
+      @input_stream = input_stream
+      @output_stream = output_stream
     end
     def dump(indent)
       sp = ' ' * indent
-      puts "#{sp}#{@name}(#{@arguments.join(",")}) -> #{@returns}"
+      puts "#{sp}#{@name}(#{@arguments.map{|a| a.to_s}.join(", ")}) -> #{@returns}"
     end
     attr_accessor :name, :arguments, :returns, :input_stream, :output_stream
   end
@@ -148,7 +157,7 @@ module Kantera
   class Service
     def initialize()
       @name = nil
-      @procedures = []
+      @procedures= []
     end
     def dump(indent)
       sp = ' ' * indent
@@ -161,13 +170,14 @@ module Kantera
     attr_accessor :name, :procedures
   end
 
-  class Syntax
-    def initialize()
-      @name = nil
+  class Setting
+    def initialize(key, value)
+      @key = key
+      @value = value
     end
     def dump(indent)
       sp = " " * indent
-      print "#{sp}#{@name}"
+      print "#{sp}#{@key} => #{}"
     end
     attr_accessor :name
   end

@@ -1,37 +1,56 @@
-require 'pp'
 require './ast_node'
 
 grammar Kantera
   include Util
   rule all
-    (comment / setting / package /
-      option / message / service / "\n")+ {
-      def build(builder)
-        elements
-          .reject{|d| d.text_value == "\n"}
-          .map{|d|
-            begin
-              d.build(builder)
-            rescue => e
-              p e
-            end
-          }
-      end
-    }
+    (comment {
+       def build(s); end
+     }
+     / setting {
+       def build(doc)
+         doc.settings.merge!(parse)
+       end
+     } / package {
+       def build(doc)
+         doc.package = parse
+       end
+     } / option {
+       def build(doc)
+         doc.options.merge!(parse)
+       end
+     } / message {
+       def build(doc)
+         parse.dump(7)
+         doc.messages << parse
+       end
+     } / service {
+       def build(doc)
+         doc.services << parse
+       end
+     } / "\n" {
+       def build(s); end
+     }
+     )+ {
+         def build(doc)
+           elements.each{|n|
+             n.build(doc)
+           }
+         end
+       }
   end
 
   rule setting
     identifier space '=' space string space? ';' {
       def key; elements[0].text_value; end
       def value; elements[4].text_value; end
-      def build(builder); builder.settings[key] = value; end
+      def parse; {key => value}; end
     }
   end
 
   rule package
     'package' space identifier space? ';' {
-      def name; elements[0].text_value; end
-      def build(builder); builder.package = name; end
+      def name; elements[2].text_value; end
+      def parse; name; end
     }
   end
 
@@ -39,7 +58,7 @@ grammar Kantera
     'option' space identifier space? '=' space? string space? ';' {
       def key; elements[2].text_value; end
       def value; elements[6].text_value; end
-      def build(builder); builder.options[key] = value; end
+      def parse; {key => value}; end
       true
     }
   end
@@ -47,27 +66,24 @@ grammar Kantera
   rule message
     'message' space identifier space? '{' (space? message_def)* space? '}' {
       def name; elements[2].text_value; end
-      def build(doc)
-        mes = Message.new(name)
-        elements[5].elements.each_with_index{|e, i|
-          e.elements[1].build(mes)
+      def parse
+        mes = Message.new
+        mes.name = name
+        elements[5].elements.each{|e|
+          child = e.elements[1]
+          begin
+            mes.add_element(child.parse)
+          rescue
+          end
         }
-        doc.messages[name] = mes
+
+        mes
       end
     }
   end
 
   rule message_def
-    member / enum / message {
-      def build(mes)
-        puts "defining[#{text_value}]"
-        elements.each{|e|
-          puts "do[#{e.text_value}]"
-          e.build(mes)
-          puts "ok[#{e.text_value}]"
-        }
-      end
-    }
+    member / enum / message
   end
 
   rule member
@@ -75,15 +91,13 @@ grammar Kantera
     identifier space identifier space '=' space number space? ';' {
       def name; elements[3].text_value; end
       def type; elements[1].text_value; end
-      def node_id; elements[6].text_value.to_i; end
+      def node_id; elements[7].text_value.to_i; end
       def attr;
         return elements[0].attr unless elements[0].text_value.empty?
         nil
       end
-      def build(mes)
-        puts "build member [#{text_value}]"
-        mes.nodes << Node.new(name, type, node_id, attr)
-        puts "build member [#{text_value}]"
+      def parse
+        Node.new(name, type, node_id, attr)
       end
     }
   end
@@ -99,13 +113,13 @@ grammar Kantera
        (identifier space '=' space number space? ';' space)*
     '}' {
       def name; elements[2].text_value; end
-      def build(mes)
+      def parse
         nodes = elements[6].elements.map{|e|
           name = e.elements[0].text_value
-          num = e.elements[5].text_value.to_i
+          num = e.elements[4].text_value.to_i
           EnumNode.new(name, num)
         }
-        mes.enums[name] = Enum.new(name, nodes)
+        Enum.new(name, nodes)
       end
     }
   end
@@ -113,24 +127,29 @@ grammar Kantera
   rule service
     'service' space identifier space? '{' (space? method_def)* space? '}' {
       def name; elements[2].text_value; end
-      def build(doc)
+      def parse
+        s = Service.new
+        s.name = name
         methods = elements[5].elements.map{|e|
-          e.build(doc)
+          s.procedures << e.elements[1].parse
         }
+        s
       end
     }
   end
 
   rule method_def
-    ('stream' space)? verb space path argument_list space? '->' space? ('stream' space)? identifier space? ';' {
+    ('stream' space)? verb space path argument_list space?
+     '->' space? ('stream' space)? identifier space? ';' {
       def name
         method = elements[1].text_value.downcase
         path = elements[3].text_value.downcase.gsub(/\//, "_")
         method + path
       end
-      def arguments; elements[4].arguments; end
-      def returns; elements[9].elements[1].text_value; end
-      def method
+      def arguments; elements[4].parse; end
+      def returns;
+        elements[9].text_value; end
+      def parse
         Procedure.new(name, arguments, returns, nil, nil)
       end
     }
@@ -143,17 +162,24 @@ grammar Kantera
   rule argument_list
     '(' space? identifier space identifier
       (space? ',' space? identifier space identifier)* space? ')' {
-      def arguments
+      def parse
         first_type = elements[2].text_value
         first_name = elements[4].text_value
         rest = elements[5].elements.map{|m|
           type = m.elements[3].text_value
           name = m.elements[5].text_value
-          Argument.new(type, name)
+          a = Argument.new
+          a.name = name
+          a.type = type
+          a
         }
-        [Argument.new(first_type, first_name)] + rest
+        t = Argument.new
+
+        t.name = first_name
+        t.type = first_type
+        [t] + rest
       end
     }
   end
-
 end
+
