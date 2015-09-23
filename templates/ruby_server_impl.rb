@@ -7,6 +7,4 @@ module <%= ast.package.name.to_camel %>
 <% ast.services.each do |service| %
 module <%= %>
 
-end
-
-end
+<% end %>

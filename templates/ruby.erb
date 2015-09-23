@@ -5,21 +5,22 @@
 require 'json'
 require 'msgpack'
 
-module <%= ast.package.name.to_camel %>
+module <%= ast.package.to_camel %>
   <%- ast.messages.each do |message| -%>
   class <%= message.name.to_camel %>
     attr_accessor <%= message.nodes.map{|d| ":#{d.name}"}.join(", ") %>
     def initialize()
       <%- message.nodes.each do |node| -%>
-      @<%= node.name %> = <%= node.attribute == "repeated_attr" ? "[]" : "nil" %>
+      @<%= node.name %> = <%= node.attribute == "repeated" ? "[]" : "nil" %>
       <%- end -%>
     end
-    <%- message.enum_defs.each do |enum_def| -%>
-    module <%= enum_def.name.to_camel %>
-      <%- enum_def.nodes.each do |node| -%>
+    <%- message.enums.each do |enum| -%>
+    module <%= enum.name.to_camel %>
+      <%- enum.nodes.each do |node| -%>
       <%= node.name.upcase %> = <%= node.node_id %>
       <%- end -%>
     end
+
     <%- end %>
     def serialize(type = :json)
       obj = {
@@ -47,7 +48,7 @@ module <%= ast.package.name.to_camel %>
       nil
     end
 
-    <%- message.message_defs.each do |message| -%>
+    <%- message.messages.each do |message| -%>
     class <%= message.name.to_camel %>
       attr_accessor <%= message.nodes.map{|d| ":#{d.name}"}.join(", ") %>
       def initialize()
@@ -55,12 +56,13 @@ module <%= ast.package.name.to_camel %>
         @<%= node.name %> = <%= node.attribute == "repeated_attr" ? "[]" : "nil" %>
         <%- end -%>
       end
-      <%- message.enum_defs.each do |enum_def| -%>
+      <%- message.enums.each do |enum_def| -%>
       module <%= enum_def.name.to_camel %>
         <%- enum_def.nodes.each do |node| -%>
         <%= node.name %> = <%= node.node_id %>
         <%- end -%>
       end
+
       <%- end -%>
       def serialize(type = :json)
         obj = {
@@ -68,6 +70,7 @@ module <%= ast.package.name.to_camel %>
           "<%= node.name %>" => @<%= node.name %>,
           <%- end -%>
         }
+
         if type == :json
           obj.to_json
         elsif type == :msgpack

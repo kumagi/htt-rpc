@@ -12,11 +12,11 @@ module Kantera
       puts "#{sp}settings: #{@settings}"
       puts "#{sp}package: #{@package}"
       unless @options.empty?
-        puts "#{sp}options: ["
+        puts "#{sp}options: {"
         @options.each{|key, value|
           puts "#{sp}  #{key} => #{value}"
         }
-        puts "#{sp}]"
+        puts "#{sp}}"
       end
       unless @messages.empty?
         puts "#{sp}messages: {"
@@ -30,7 +30,7 @@ module Kantera
         @services.each{|m|
           m.dump(indent + 2)
         }
-        puts "#{sp}]"
+        puts "#{sp}}"
       end
     end
     attr_accessor :settings, :package, :options, :messages, :services
@@ -140,18 +140,40 @@ module Kantera
   end
 
   class Procedure
-    def initialize(name, arguments, returns, input_stream, output_stream)
+    def initialize(name, arguments, returns, raw_path, input_stream, output_stream)
       @name = name
       @arguments = arguments
       @returns = returns
+      @raw_path = raw_path
       @input_stream = input_stream
       @output_stream = output_stream
     end
+    def make_method
+      found = @name.gsub(/{.*?}/){|m|
+        name = m.gsub("{", "").gsub("}", "")
+        name.upcase
+      }
+      found
+    end
+    def arg_list
+      found = @name.scan /{.*?}/
+      if found.empty?
+        @arguments
+      else
+        found.map{|m|
+          arg = Argument.new
+          arg.type = "string"
+          arg.name = m.gsub("{", "").gsub("}", "")
+          arg
+        } + @arguments
+      end
+    end
     def dump(indent)
       sp = ' ' * indent
-      puts "#{sp}#{@name}(#{@arguments.map{|a| a.to_s}.join(", ")}) -> #{@returns}"
+      puts "#{sp}#{make_method}(#{arg_list.map{|a| a.to_s}.join(", ")}) -> #{@returns}"
     end
-    attr_accessor :name, :arguments, :returns, :input_stream, :output_stream
+    attr_accessor :name, :arguments, :raw_path,
+                  :returns, :input_stream, :output_stream
   end
 
   class Service

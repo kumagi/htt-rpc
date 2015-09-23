@@ -13,7 +13,7 @@ class <%= filename.to_camel %>Server < Reel::Server::HTTP
     super(host, port, &method(:on_connection))
     @services = {}
     <%- ast.services.each do |service| -%>
-    @services["<%= service.name.to_snake %>"] = <%= ast.package.name.to_camel %>::<%= service.name%>.new
+    @services["<%= service.name.to_snake %>"] = <%= ast.package.to_camel %>::<%= service.name%>.new
     <%- end -%>
   end
 
@@ -29,6 +29,7 @@ class <%= filename.to_camel %>Server < Reel::Server::HTTP
 
   def handle_request(request)
     buff = request.body.read(10000)
+
     case request.headers["Content-type"]
     when "application/json"
       begin
@@ -48,6 +49,10 @@ class <%= filename.to_camel %>Server < Reel::Server::HTTP
 
     # parse url
     target, method = request.url.split("/").reject{|m|m.empty?}
+    p request.method.downcase
+    p request.url
+
+    p target, method
     begin
       result = @services[target].send(method.to_sym, data)
       request.respond :ok, result.to_json

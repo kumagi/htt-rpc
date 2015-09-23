@@ -20,7 +20,6 @@ grammar Kantera
        end
      } / message {
        def build(doc)
-         parse.dump(7)
          doc.messages << parse
        end
      } / service {
@@ -40,16 +39,16 @@ grammar Kantera
   end
 
   rule setting
-    identifier space '=' space string space? ';' {
-      def key; elements[0].text_value; end
-      def value; elements[4].text_value; end
+    setting_name:identifier space '=' space setting_value:string space? ';' {
+      def key; setting_name.text_value; end
+      def value; setting_value.text_value; end
       def parse; {key => value}; end
     }
   end
 
   rule package
-    'package' space identifier space? ';' {
-      def name; elements[2].text_value; end
+    'package' space pname:identifier space? ';' {
+      def name; pname.text_value; end
       def parse; name; end
     }
   end
@@ -88,10 +87,10 @@ grammar Kantera
 
   rule member
     member_atribute?
-    identifier space identifier space '=' space number space? ';' {
-      def name; elements[3].text_value; end
-      def type; elements[1].text_value; end
-      def node_id; elements[7].text_value.to_i; end
+    ty:identifier space na:identifier space '=' space num:number space? ';' {
+      def name; na.text_value; end
+      def type; ty.text_value; end
+      def node_id; num.text_value.to_i; end
       def attr;
         return elements[0].attr unless elements[0].text_value.empty?
         nil
@@ -109,14 +108,14 @@ grammar Kantera
   end
 
   rule enum
-    'enum' space identifier space '{' space
-       (identifier space '=' space number space? ';' space)*
+    'enum' space ident:identifier space '{' space
+       enums:(name:identifier space '=' space num:number space? ';' space)*
     '}' {
-      def name; elements[2].text_value; end
+      def name; ident.text_value; end
       def parse
-        nodes = elements[6].elements.map{|e|
-          name = e.elements[0].text_value
-          num = e.elements[4].text_value.to_i
+        nodes = enums.elements.map{|e|
+          name = e.name.text_value
+          num = e.num.text_value.to_i
           EnumNode.new(name, num)
         }
         Enum.new(name, nodes)
@@ -125,13 +124,13 @@ grammar Kantera
   end
 
   rule service
-    'service' space identifier space? '{' (space? method_def)* space? '}' {
-      def name; elements[2].text_value; end
+    'service' space n:identifier space? '{' services:(space? defs:method_def)* space? '}' {
+      def name; n.text_value; end
       def parse
         s = Service.new
         s.name = name
-        methods = elements[5].elements.map{|e|
-          s.procedures << e.elements[1].parse
+        methods = services.elements.map{|e|
+          s.procedures << e.defs.parse
         }
         s
       end
@@ -139,18 +138,29 @@ grammar Kantera
   end
 
   rule method_def
-    ('stream' space)? verb space path argument_list space?
-     '->' space? ('stream' space)? identifier space? ';' {
+    in_stream:(txt:'stream' space)? v:verb space pos:path args:argument_list space?
+     '->' space? out_stream:(txt:'stream' space)? ret:identifier space? ';' {
       def name
-        method = elements[1].text_value.downcase
-        path = elements[3].text_value.downcase.gsub(/\//, "_")
+        method = v.text_value.downcase
+        path = pos.text_value.downcase.gsub(/\//, "_")
         method + path
       end
-      def arguments; elements[4].parse; end
-      def returns;
-        elements[9].text_value; end
+      def arguments;
+        args.parse; end
+      def returns; ret.text_value; end
+      def input_stream
+        return nil if in_stream.text_value == ""
+        in_stream.txt.text_value == "stream"
+      end
+      def output_stream
+        return nil if in_stream.text_value == ""
+        out_stream.txt.text_value == 'stream'
+      end
+      def raw_path
+        pos.text_value
+      end
       def parse
-        Procedure.new(name, arguments, returns, nil, nil)
+        Procedure.new(name, arguments, returns, raw_path, input_stream, output_stream)
       end
     }
   end
@@ -160,26 +170,25 @@ grammar Kantera
   end
 
   rule argument_list
-    '(' space? identifier space identifier
-      (space? ',' space? identifier space identifier)* space? ')' {
+    '(' car:argument cdr:(',' args:argument)* ')' {
       def parse
-        first_type = elements[2].text_value
-        first_name = elements[4].text_value
-        rest = elements[5].elements.map{|m|
-          type = m.elements[3].text_value
-          name = m.elements[5].text_value
-          a = Argument.new
-          a.name = name
-          a.type = type
-          a
+        first = car.parse
+        rest = cdr.elements.map{|m|
+          m.args.parse
         }
-        t = Argument.new
+        [first] + rest
+      end
+    }
+  end
 
-        t.name = first_name
-        t.type = first_type
-        [t] + rest
+  rule argument
+    space? ftype:identifier space fname:identifier space? {
+      def parse
+        ret = Argument.new
+        ret.type = ftype.text_value
+        ret.name = fname.text_value
+        ret
       end
     }
   end
 end
-

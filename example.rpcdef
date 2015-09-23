@@ -41,5 +41,4 @@ service SampleService {
 
 service Math {
   GET /add(int x, int y) -> int;
-  GET /add(double x, double y) -> double;
 }

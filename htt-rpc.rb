@@ -16,7 +16,6 @@ class String
   end
 end
 
-
 ## input validations
 
 if ARGV.length < 1
@@ -26,13 +25,17 @@ if ARGV.length < 1
   exit(1)
 end
 
+require 'treetop'
 require './ast_node'
-require './parser'
+require './util'
+require './kantera'
 require 'optparse'
 require 'erb'
-params = ARGV.getopts('i:o:l:v')
+params = ARGV.getopts('i:o:fl:v')
+
 # i -> input file
 # o -> output file # default input-file with language
+# f -> force
 # l -> language
 # v -> verbose
 
@@ -51,7 +54,11 @@ end
 
 file = params["i"]
 puts "read #{file}"
-ast = parse_text(File.open(file, "r").read)
+parser = KanteraParser.new
+parsed = parser.parse(File.open(file, "r").read)
+ast = Kantera::Document.new
+parsed.build ast
+
 if params["v"]
   ast.dump(2)
 end
@@ -82,7 +89,7 @@ templates.each{|t|
     outfile = "#{filename}#{t}.rb"
   end
 
-  if /impl/ =~ t and File.exists? outfile
+  if /impl/ =~ t and File.exists? outfile and not params['f']
     puts "Implementation file already exist, I won't overwrite."
     puts "If you want to initialize it, delete '#{outfile}'"
   else

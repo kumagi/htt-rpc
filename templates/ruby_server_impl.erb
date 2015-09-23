@@ -3,14 +3,27 @@
 # this source code is automatically generated from <%= file %>
 require './<%= filename %>'
 
-module <%= ast.package.name.to_camel %>
+module <%= ast.package.to_camel %>
   <%- ast.services.each do |service| -%>
   class <%= service.name.to_camel %>
     <%- service.procedures.each do |method| -%>
-    def <%= method.name.downcase %>(<%= method.arguments.map{|m|m.to_snake}.join(", ") %>)
+    def <%= method.make_method %>(<%= method.arg_list.map{|m| m.name.to_snake}.join(", ") %>)
     end
-    <%- end -%>
+    <%- end %>
+    def initialize()
+      method_map = {}
+    end
+
+    def dispatch(path, *args)
+      case path
+      <%- service.procedures.each do |method| -%>
+      when /<%= method.raw_path.gsub("/", "\\/").gsub(/{[^}]+?}/, "([^/]+)") %>/ =~ path
+        
+        <%= method.make_method %>(*args)
+      <%- end -%>
+      end
+    end
   end
+
   <%- end -%>
 end
-
