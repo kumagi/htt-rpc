@@ -20,7 +20,7 @@ end
 
 if ARGV.length < 1
   puts "call with target file like "
-  puts " $ ruby htt-rpc.rb"
+  puts " $ ruby compiler.rb"
   puts ""
   exit(1)
 end
@@ -39,8 +39,15 @@ params = ARGV.getopts('i:o:fl:v')
 # l -> language
 # v -> verbose
 
-unless params.include? "l"
+if params["l"].nil?
+  dir = File.expand_path(File.dirname(__FILE__))
+  entries = Dir.entries(dir + "/templates")
+    .select{|a|/[^.]+\.erb/ =~ a}
+    .reject{|a| /_/ =~ a}
+    .map{|s| s.gsub(/.erb/, "")}
+  p entries
   puts "output language needed via -l option"
+  puts "suppored language: #{entries.join(", ")}"
   exit(1)
 end
 

@@ -4,6 +4,7 @@
 
 require 'celluloid/autostart'
 require 'reel'
+require 'pp'
 require './<%= filename %>_server_impl'  # user implements
 require 'json'
 require 'msgpack'
@@ -11,10 +12,22 @@ require 'msgpack'
 class <%= filename.to_camel %>Server < Reel::Server::HTTP
   def initialize(host = "127.0.0.1", port = 3000)
     super(host, port, &method(:on_connection))
+
     @services = {}
     <%- ast.services.each do |service| -%>
     @services["<%= service.name.to_snake %>"] = <%= ast.package.to_camel %>::<%= service.name%>.new
     <%- end -%>
+
+    @static_methods = {}
+    @static_argument_parser = {}
+    <%- ast.services.each do |service| -%>
+    <%- service.procedures.each do |method| -%>
+    <%- next if method.raw_path =~ /{.*?}/ -%>
+    @static_methods["/<%= service.name.to_snake %><%= method.raw_path -%>"] = @services["<%= service.name.to_snake %>"].method(:<%= method.make_method %>)
+    @static_argument_parser["/<%= service.name.to_snake %><%= method.raw_path -%>"] = self.method(:parse_for_<%= service.name.to_snake %>_<%= method.make_method%>)
+    <%- end -%>
+    <%- end -%>
+
   end
 
   def on_connection(connection)
@@ -30,6 +43,7 @@ class <%= filename.to_camel %>Server < Reel::Server::HTTP
   def handle_request(request)
     buff = request.body.read(10000)
 
+    data = nil
     case request.headers["Content-type"]
     when "application/json"
       begin
@@ -47,18 +61,20 @@ class <%= filename.to_camel %>Server < Reel::Server::HTTP
       end
     end
 
-    # parse url
-    target, method = request.url.split("/").reject{|m|m.empty?}
-    p request.method.downcase
-    p request.url
-
-    p target, method
     begin
-      result = @services[target].send(method.to_sym, data)
+      result = dispatch(request.url, data)
       request.respond :ok, result.to_json
+    rescue ArgumentError => e
+      p e
+      pp e.backtrace
+      request.respond :bad_request, "invalid request"
     rescue NoMethodError => e
-      request.respond :not_found, "method '#{method}' does not exist"
+      p e
+      pp e.backtrace
+      request.respond :not_found, "method '#{request.url}' does not exist"
     rescue => e
+      p e
+      pp e.backtrace
       request.respond :ok, e.to_str
     end
   end
@@ -67,6 +83,52 @@ class <%= filename.to_camel %>Server < Reel::Server::HTTP
     sock << "Hello everyone out there in WebSocket land!"
     sock.close
   end
+
+  def dispatch(path, data)
+    # static route
+    if @static_methods.include?(path)
+      args = @static_argument_parser[path].call(data)
+      return @static_methods[path].call(*args)
+    end
+
+    <%- ast.services.each do |service| -%>
+    <%- if service.procedures.any?{|m| /{.*?}/ =~ m.raw_path }-%>
+
+    # dynamic route
+    <%- service.procedures.each do |method| -%>
+    <%- next unless method.raw_path =~ /{.*?}/ -%>
+    if ret = path.scan(/<%= method.raw_path.gsub("/", "\\/").gsub(/{[^}]+?}/, "([^\\/]+)") %>/)
+      puts "calling <%= method.make_method %>"
+      args = parse_for_<%= service.name.to_snake %>_<%= method.make_method %>(data)
+      return @services["<%= service.name.to_snake %>"].<%= method.make_method %>(*ret, *args)
+    end
+    <%- end -%>
+    <%- end -%>
+    <%- end -%>
+
+    # failed to route
+    raise ("method for #{path} not found")
+  end
+
+  <%- ast.services.each do |service| -%>
+  <%- service.procedures.each do |method| -%>
+  def parse_for_<%= service.name.to_snake %>_<%= method.make_method %>(data)
+    ret = []
+    if data.class == Array
+      return ret
+    <%- unless method.arguments.empty? -%>
+    elsif data.class == Hash
+      <%- method.arguments.each_with_index do |argument, i| -%>
+      ret[<%= i %>] = data["<%= argument.name %>"]
+      <%- end -%>
+    <%- end -%>
+    else
+      raise "Invalid argument #{data.class}: #{data}"
+    end
+    ret
+  end
+  <%- end -%>
+  <%- end -%>
 end
 
 <%= filename.to_camel %>Server.run
